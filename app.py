@@ -14,25 +14,31 @@ users_table = dynamodb.Table(os.environ.get('DYNAMODB_TABLE', 'CollegeUsers'))
 def home():
     return render_template('login.html')
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    email = request.form['email']
-    password = request.form['password']
-    
-    response = users_table.get_item(Key={'email': email})
-    user = response.get('Item')
-    
-    if user and check_password_hash(user['password'], password):
-        session['user'] = user['email']
-        return redirect(url_for('dashboard'))
-    else:
-        return 'Invalid Credentials, try again!'
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        
+        response = users_table.get_item(Key={'email': email})
+        user = response.get('Item')
+        
+        if user and check_password_hash(user['password'], password):
+            session['user'] = user['email']
+            return redirect(url_for('dashboard'))
+        else:
+            return render_template('login.html', error='Invalid Credentials, try again!')
+    return render_template('login.html')
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         email = request.form['email']
         password = generate_password_hash(request.form['password'])
+        
+        response = users_table.get_item(Key={'email': email})
+        if 'Item' in response:
+            return render_template('signup.html', error='Email already exists!')
         
         users_table.put_item(Item={'email': email, 'password': password})
         return redirect(url_for('home'))
@@ -50,6 +56,6 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('home'))
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
